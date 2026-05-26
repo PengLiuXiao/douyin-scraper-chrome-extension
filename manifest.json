@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "DouyinURL提取Pro",
+  "version": "1.0.0",
+  "description": "AI智能检测抖音视频数据，一键提取URL、aweme-id等15个字段，支持CSV导出",
+  "permissions": [
+    "webRequest",
+    "activeTab",
+    "storage",
+    "clipboardWrite",
+    "notifications",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.douyin.com/*"
+  ],
+  "action": {
+    "default_title": "DouyinURL提取Pro - AI智能检测"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.douyin.com/*"],
+      "js": ["inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["*://*.douyin.com/*"],
+      "js": ["js/jquery-3.1.1.min.js", "js/sha256.min.js", "content.js"],
+      "css": ["content.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png", 
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
