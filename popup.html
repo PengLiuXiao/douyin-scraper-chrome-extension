@@ -61,7 +61,7 @@
               </div>
           </div>
 
-          <div class="col-xs-5">
+          <div class="col-xs-7 left-column">
               <button type="button" class="btn btn-primary btn-block" id='startScraping'>开始爬取</button>
               <button type="button" class="btn btn-default btn-block" id='stopScraping'>停止爬取</button>
 
@@ -92,15 +92,19 @@
                   </div>
              </form>
           </div>
-          <div class="col-xs-3">
-              <button type="button" class="btn btn-success download-button  btn-block" id='csv'><span class="glyphicon glyphicon-download-alt"></span> CSV</button><br>
-              <button type="button" class="btn btn-success download-button  btn-block" id='xlsx'><span class="glyphicon glyphicon-download-alt"></span> XLSX</button>
-			  <button type="button" class="btn btn-success download-button  btn-block" id='copy'><span class="glyphicon glyphicon-copy"></span> 复制全部</button>
+          <div class="col-xs-5 right-column">
+              <button type="button" class="btn btn-success download-button btn-block" id='csv'><span class="glyphicon glyphicon-download-alt"></span> CSV</button><br>
+              <button type="button" class="btn btn-success download-button btn-block" id='xlsx'><span class="glyphicon glyphicon-download-alt"></span> XLSX</button>
+			  <button type="button" class="btn btn-success download-button btn-block" id='copy'><span class="glyphicon glyphicon-copy"></span> 复制全部</button>
+              
+              <div id="stats">
+                  <div>已采集页数：0</div>
+                  <div>收集视频数：0</div>
+                  <div>本次新增：0</div>
+                  <div>已运行：0s</div>
+              </div>
+              
               <button type="button" class="btn btn-warning btn-block" id='resetColumns'>重置列</button>
-          </div>
-          <div class="col-xs-4">
-              <a href="https://github.com/PengLiuXiao/douyin-url-extractor-pro" id="help" target="_blank"><span class="glyphicon glyphicon-info-sign"></span> 使用帮助</a>
-              <div id="stats"></div>
           </div>
           <div class="col-xs-12" id="info">
                <div class="alert alert-danger" id="error"></div>

@@ -15,7 +15,25 @@ body {
     margin-top: 10px;
 }
 #stats {
-    margin-top: 50px;
+    margin-top: 15px;
+    padding: 12px;
+    border: 1px solid #f0c0c8;
+    border-radius: 8px;
+    background-color: #fff9fa;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #444;
+}
+#stats div {
+    margin-bottom: 4px;
+}
+#stats div:last-child {
+    margin-bottom: 0;
+}
+
+.right-column {
+    border-left: 1px solid #ddd;
+    padding-left: 20px;
 }
 #wait-spider {
     height: 150px;
@@ -26,10 +44,7 @@ body {
     margin: 20px;
     text-align: center;
 }
-#help {
-    float: right;
-    margin-right: 5px;
-}
+
 
 .hot-header {
     position: relative;
@@ -128,10 +143,12 @@ body {
 }
 
 @media (max-width: 500px) {
-    .col-xs-5, .col-xs-3, .col-xs-4 {
+    .left-column, .right-column {
         width: 100% !important;
         float: none !important;
         margin-bottom: 15px;
+        border-left: none !important;
+        padding-left: 0 !important;
     }
     #stats {
         margin-top: 10px !important;
