@@ -21,7 +21,13 @@
             url.includes('/aweme/v1/web/aweme/post') ||
             url.includes('/aweme/v1/web/discover/feed') ||
             url.includes('/aweme/v1/feed') ||
-            url.includes('/aweme/v1/web/tab/feed')
+            url.includes('/aweme/v1/web/tab/feed') ||
+            url.includes('/aweme/v1/web/relation/follow/feed') ||
+            url.includes('/aweme/v1/web/mix/aweme') ||
+            url.includes('/aweme/v1/web/general/search/single') ||
+            url.includes('/aweme/v1/web/challenge/aweme') ||
+            url.includes('/aweme/v1/web/hot/search/video/list') ||
+            url.includes('/aweme/v1/web/music/aweme')
         )) {
             try {
                 const clone = response.clone();
@@ -51,7 +57,13 @@
                 url.includes('/aweme/v1/web/aweme/post') ||
                 url.includes('/aweme/v1/web/discover/feed') ||
                 url.includes('/aweme/v1/feed') ||
-                url.includes('/aweme/v1/web/tab/feed')
+                url.includes('/aweme/v1/web/tab/feed') ||
+                url.includes('/aweme/v1/web/relation/follow/feed') ||
+                url.includes('/aweme/v1/web/mix/aweme') ||
+                url.includes('/aweme/v1/web/general/search/single') ||
+                url.includes('/aweme/v1/web/challenge/aweme') ||
+                url.includes('/aweme/v1/web/hot/search/video/list') ||
+                url.includes('/aweme/v1/web/music/aweme')
             )) {
                 try {
                     const json = JSON.parse(this.responseText);

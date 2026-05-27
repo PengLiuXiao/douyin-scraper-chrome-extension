@@ -9,7 +9,7 @@
   </head>
   <body>
 	  <div id="wait">
-          <h1 id="waitHeader">Please wait...</h1>
+          <h1 id="waitHeader">请稍候...</h1>
           <div id="noResponseErr" class="alert alert-danger"></div>
           <img src="webrobots_logo.png" id="wait-spider"/>
       </div>
@@ -30,50 +30,34 @@
           </div>
 
           <div class="col-xs-5">
-              <button type="button" class="btn btn-default btn-block" id='wrongTable'>Try another table</button>
-              <button type="button" class="btn btn-primary btn-block" id='nextButton'>Locate "Next" button</button>
-
-
-              <button type="button" class="btn btn-primary btn-block" id='startScraping'>Start crawling</button>
-              <button type="button" class="btn btn-default btn-block" id='stopScraping'>Stop crawling</button>
-
-              <div id="infinateScrollElement">
-                  <input type="checkbox" id="infinateScroll">
-                  <label for="infinateScroll" id="infinateScrollLabel">Infinite scroll</label>
-              </div>
+              <button type="button" class="btn btn-primary btn-block" id='startScraping'>开始爬取</button>
+              <button type="button" class="btn btn-default btn-block" id='stopScraping'>停止爬取</button>
 
               <form class="btn-block">
                   <div class="input-group btn-block">
-                      <span class="input-group-addon">Min delay</span>
+                      <span class="input-group-addon">最短延迟</span>
                       <input id='crawlDelay' type='number' value='1' class="form-control" />
-                      <span class="input-group-addon">sec</span>
+                      <span class="input-group-addon">秒</span>
                   </div>
                   <div class="input-group btn-block">
-                      <span class="input-group-addon">Max delay</span>
+                      <span class="input-group-addon">最长等待</span>
                       <input id='maxWait' type='number' value='20' class="form-control" />
-                      <span class="input-group-addon">sec</span>
+                      <span class="input-group-addon">秒</span>
                   </div>
              </form>
           </div>
           <div class="col-xs-3">
               <button type="button" class="btn btn-success download-button  btn-block" id='csv'><span class="glyphicon glyphicon-download-alt"></span> CSV</button><br>
               <button type="button" class="btn btn-success download-button  btn-block" id='xlsx'><span class="glyphicon glyphicon-download-alt"></span> XLSX</button>
-			  <button type="button" class="btn btn-success download-button  btn-block" id='copy'><span class="glyphicon glyphicon-copy"></span> COPY ALL</button>
-              <button type="button" class="btn btn-success btn-block d-none" id='editPrecanned'><span class="glyphicon glyphicon-edit"></span> EDIT AGENT</button>
-              <button type="button" class="btn btn-success btn-block d-none" id='createPrecanned'><span class="glyphicon glyphicon-wrench"></span> CREATE AGENT</button>
-              <button type="button" class="btn btn-warning btn-block" id='resetColumns'>Reset columns</button>
+			  <button type="button" class="btn btn-success download-button  btn-block" id='copy'><span class="glyphicon glyphicon-copy"></span> 复制全部</button>
+              <button type="button" class="btn btn-warning btn-block" id='resetColumns'>重置列</button>
           </div>
           <div class="col-xs-4">
-              <a href=https://webrobots.io/instantdata id="help" target="_blank"><span class="glyphicon glyphicon-info-sign"></span> Help/Feedback</a>
+              <a href="https://github.com/PengLiuXiao/douyin-url-extractor-pro" id="help" target="_blank"><span class="glyphicon glyphicon-info-sign"></span> 使用帮助</a>
               <div id="stats"></div>
           </div>
           <div class="col-xs-12" id="info">
                <div class="alert alert-danger" id="error"></div>
-               <div class="alert alert-success" id="pleaseRate">
-                   If you like this extension, please rate it in chrome store:
-                   <button type="button" class="btn btn-success download-button" id="rate">Rate</button>
-                   <button type="button" class="btn btn-success download-button" id="rateLater">Later</button>
-               </div>
                <div class="alert alert-warning" id="inputError"></div>
                <div class="alert alert-warning" id="finished"></div>
                <div class="alert alert-warning" id="previewLimit"></div>

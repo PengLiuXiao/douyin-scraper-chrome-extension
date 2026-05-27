@@ -1,4 +1,4 @@
-/*! InstantDataScraperNext - 2025-01-29 */
+/* DouyinURL提取Pro - popup controller */
 
 function e(e, t, n, o, r, a, i) {
   var s = {},
@@ -140,22 +140,20 @@ if (urlParams.tabid && urlParams.url) {
 }
 
 async function d() {
-  null !== i.url.toLowerCase().match(/\/\/[a-z]+\.linkedin\.com/)
-    ? ($("#waitHeader").hide(),
-      p(
-        "We're unable to collect data from LinkedIn. Sorry for the inconvenience.  If you have further questons please contact us at info@webrobots.io",
-        "noResponseErr",
-        !1,
-        !0,
-      ))
-    : (I(),
-      setTimeout(function () {
-        (console.log("no response"), $("#waitHeader").is(":visible") && y(!0));
-      }, 5e4),
-      $(window).resize(function () {
-        v();
-      }),
-      R());
+  if (!i.url || !i.url.toLowerCase().includes('douyin.com')) {
+    $("#waitHeader").hide();
+    p("DouyinURL提取Pro 仅支持抖音网站（douyin.com），请先在浏览器中打开抖音页面再使用本扩展。", "noResponseErr", false, false);
+    return;
+  }
+  I();
+  setTimeout(function () {
+    console.log("no response");
+    $("#waitHeader").is(":visible") && y(true);
+  }, 5e4);
+  $(window).resize(function () {
+    v();
+  });
+  R();
 }
 function f(e, t) {
   return (t || ".") + e.replace(/[!"#$%&'()*+,.\/:;<=>?@[\\\]^`{|}~]/g, "\\$&");
@@ -388,13 +386,8 @@ function S() {
   localStorage.setItem(s.configName, JSON.stringify(s.config));
 }
 function y(e) {
-  ($("#waitHeader").hide(),
-    p(
-      "Instant Data doesn't support data extraction from this site yet. Our administrators are notified and will try to add support in the future. Thanks for trying us out!",
-      "noResponseErr",
-      !1,
-      !0,
-    ));
+  $("#waitHeader").hide();
+  p("页面响应超时，请刷新抖音页面后重试。", "noResponseErr", false, false);
 }
 function k() {
   return localStorage.getItem("nextSelector:" + s.hostName);
@@ -457,23 +450,12 @@ function x(e, t) {
       String(now.getHours()).padStart(2, "0") +
       String(now.getMinutes()).padStart(2, "0");
     n += "_" + dateStr;
-    $("#wrongTable").hide();
-    $("#nextButton").hide();
-    $("#infinateScroll").prop("checked", true);
-    s.config.infinateScrollChecked = true;
     $("#startScraping").show();
     $("#douyinSearchPanel").show();
-  } else {
-    $("#wrongTable").show();
-    s.config.infinateScrollChecked &&
-      ($("#nextButton").hide(),
-      $("#startScraping").show(),
-      $("#infinateScroll").prop("checked", !0));
-    $("#douyinSearchPanel").hide();
   }
   chrome.tabs.sendMessage(i.id, { action: "getTableData" }, function (e) {
     e && e.error
-      ? p("Something went wrong!", "noResponseErr", !0)
+      ? p("获取数据时出错，请刷新页面重试。", "noResponseErr", !0)
       : e.tableId == s.tableId &&
         (e.failedToProcess
           ? (p(
@@ -498,7 +480,7 @@ function x(e, t) {
         $("#wait").hide(),
         $("#content").show(),
         p(
-          'Download data or locate "Next" to crawl multiple pages',
+          '可点击“开始爬取”滚动采集更多数据，或直接下载已获取的数据。',
           "instructions",
         ),
         (s.data = e.data),
@@ -514,7 +496,7 @@ function x(e, t) {
         $("#csv")
           .off("click")
           .click(function () {
-            (console.log("Downloading CSV..."), r(b), P({ download: !0 }));
+            (console.log("Downloading CSV..."), r(b));
             let e = w(s.data);
             (e.data.forEach((t, n) => {
               t.forEach((t, o) => {
@@ -536,7 +518,6 @@ function x(e, t) {
           .off("click")
           .click(function () {
             (r(b),
-              P({ download: !0 }),
               saveAs(
                 new Blob([m(o(w(s.data), i.url.substring(0, 100)))], {
                   type: "application/octet-stream",
@@ -548,7 +529,6 @@ function x(e, t) {
           .off("click")
           .click(function () {
             (r(b),
-              P({ download: !0 }),
               E(Papa.unparse(w(s.data), { delimiter: "\t" })));
           }));
   });
@@ -558,15 +538,9 @@ function N(e) {
   return t[0].indexOf("www") > -1 ? t[1] : t[0];
 }
 function E(e) {
-  var t = function (t) {
-    (t.preventDefault(),
-      t.clipboardData
-        ? t.clipboardData.setData("text/plain", e)
-        : window.clipboardData && window.clipboardData.setData("Text", e));
-  };
-  (window.addEventListener("copy", t),
-    document.execCommand("copy"),
-    window.removeEventListener("copy", t));
+  navigator.clipboard.writeText(e).catch(function(err) {
+    console.error('DouyinURL提取Pro: 复制失败', err);
+  });
 }
 function R() {
   chrome.tabs.sendMessage(
@@ -578,7 +552,7 @@ function R() {
   );
 }
 function C() {
-  return $("#infinateScroll").is(":checked");
+  return true; // 抖音模式始终使用无限滚动
 }
 function D(e) {
   s.data = s.data.concat(e);
@@ -591,9 +565,9 @@ function T() {
     (s.scraping = !0),
     $("#startScraping").hide(),
     $("#stopScraping").show(),
-    p("", "error"),
-    p('Please wait for more pages or press "Stop crawling".', "instructions"),
-    C() && $("#infinateScrollElement").hide());
+    p("", "error"));
+  p('正在滚动采集中，请等待或点击“停止爬取”…', "instructions");
+  C() && $("#infinateScrollElement").hide();
   var t = new Date();
   !(function n() {
     const o = function (e) {
@@ -646,7 +620,7 @@ function T() {
                   q(),
                   s.previewLength < c
                     ? v()
-                    : p("Preview limited to 1000 rows.", "previewLimit"),
+                    : p("预览仅显示前 1000 条，完整数据请下载。", "previewLimit"),
                   s.scraping && n());
               }
             },
@@ -686,16 +660,6 @@ function I() {
     ),
     $("#resetColumns").click(function () {
       ((s.config.deletedFields = {}), S(), $("#resetColumns").hide(), v());
-    }),
-    $("#infinateScroll").click(function (e) {
-      (s.config.infinateScrollChecked
-        ? ((s.config.infinateScrollChecked = !1),
-          $("#nextButton").show(),
-          k() ? $("#startScraping").show() : $("#startScraping").hide())
-        : ((s.config.infinateScrollChecked = !0),
-          $("#nextButton").hide(),
-          $("#startScraping").show()),
-        S());
     }),
     $("#douyinSearchBtn").click(function () {
       var keyword = $("#douyinSearchKeyword").val().trim();
@@ -746,69 +710,21 @@ function L(e = null) {
     $("#startScraping").show(),
     $("#stopScraping").hide(),
     p(
-      "Crawling stopped. Please download data or continue crawling.",
+      "已停止爬取，可下载数据或继续采集。",
       "instructions",
     ));
 }
-function O() {
-  ($("#pleaseRate").show(),
-    $("#rateLater")
-      .show()
-      .click(function () {
-        (P({ rate: "later" }),
-          $("#pleaseRate").hide(),
-          r(() => a.fireEvent("Click", { button: "Rate later" })));
-      }),
-    $("#rate")
-      .show()
-      .click(function () {
-        (P({ rate: "now" }),
-          $("#pleaseRate").hide(),
-          r(() => a.fireEvent("Click", { button: "Rate now" })),
-          chrome.tabs.create({
-            url: "https://chrome.google.com/webstore/detail/instant-data-scraper/ofaokhiedipichpaobibbnahnkdoiiah/reviews",
-          }));
-      }));
-}
-function P(e) {
-  var t = JSON.parse(localStorage.getItem("stats")) || {
-    pages: 0,
-    rows: 0,
-    downloads: 0,
-    tabs: 0,
-    lastRateRequest: null,
-    lastDownloads: 0,
-    lastRows: 0,
-    rated: !1,
-  };
-  (e.download
-    ? t.downloads++
-    : e.rate
-      ? ("later" == e.rate &&
-          ((t.lastRateRequest = new Date().getTime()),
-          (t.lastDownloads = t.downloads),
-          (t.lastRows = t.rows)),
-        "now" == e.rate && (t.rated = !0))
-      : (1 == s.pages && t.tabs++, t.pages++, (t.rows += s.lastRows)),
-    !t.rated &&
-      new Date().getTime() - t.lastRateRequest > 52704e5 &&
-      t.downloads - t.lastDownloads > 9 &&
-      t.rows - t.lastRows > 999 &&
-      O(),
-    localStorage.setItem("stats", JSON.stringify(t)));
-}
 function q() {
-  ($("#stats")
+  $("#stats")
     .empty()
-    .append($("<div>", { text: "Pages scraped: " + s.pages }))
-    .append($("<div>", { text: "Rows collected: " + s.data.length }))
-    .append($("<div>", { text: "Rows from last page: " + s.lastRows }))
+    .append($("<div>", { text: "已采集页数：" + s.pages }))
+    .append($("<div>", { text: "收集视频数：" + s.data.length }))
+    .append($("<div>", { text: "本次新增：" + s.lastRows }))
     .append(
       $("<div>", {
-        text: "Working time: " + parseInt(s.workingTime / 1e3) + "s",
+        text: "已运行：" + parseInt(s.workingTime / 1e3) + "s",
       }),
-    ),
-    P({}));
+    );
 }
 async function j(e = !1) {
   var t = s.tableSelector.replace(".tablescraper-selected-table", ""),
@@ -864,33 +780,4 @@ function U(e, t) {
     );
   });
 }
-($("#wrongTable").click(function () {
-  ($("#hot").empty(),
-    chrome.tabs.sendMessage(i.id, { action: "nextTable" }, x));
-}),
-  $("#nextButton").click(function () {
-    (p('Mark "Next" button or link', "instructions"),
-      (s.gettingNext = !0),
-      (function e() {
-        chrome.tabs.sendMessage(
-          i.id,
-          { action: "getNextButton" },
-          function (t) {
-            s.scraping ||
-              (s.gettingNext && e(),
-              t.selector &&
-                ($("#startScraping").show(),
-                p(
-                  '"Next" button located. Press "Start crawling" to get more pages or mark another button/link if marked incorrectly.',
-                  "instructions",
-                ),
-                (s.nextSelector = t.selector),
-                localStorage.setItem(
-                  "nextSelector:" + s.hostName,
-                  t.selector,
-                )));
-          },
-        );
-      })());
-  }),
-  $("#startScraping").click(T));
+($("#startScraping").click(T));

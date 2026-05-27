@@ -1,3 +1,8 @@
+/*
+ * DouyinURL提取Pro - 页面高亮样式
+ * 以下类名由 content.js 动态注入，用于通用模式下高亮选中的元素
+ * 抖音专用模式（API拦截路径）不会触发这些样式
+ */
 .tablescraper-selected-table {
     border: 3px solid red !important;
 }
