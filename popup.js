@@ -781,3 +781,393 @@ function U(e, t) {
   });
 }
 ($("#startScraping").click(T));
+
+/* ============================================================
+   批量关键词导入搜索 — Batch Keyword Import & Search
+   ============================================================ */
+
+// ---------- 状态对象 ----------
+var batchState = {
+  keywords: [],          // string[]
+  results: {},           // { keyword: rowArray }
+  statuses: {},          // { keyword: 'pending'|'running'|'done'|'failed' }
+  currentIndex: 0,
+  running: false,
+  saveDir: null,         // FileSystemDirectoryHandle | null
+  startDate: null,
+  stableCheckTimer: null,
+  lastDataLen: 0,
+  stableCount: 0,
+};
+
+// ---------- 文件解析 ----------
+function parseKeywordFile(file) {
+  return new Promise(function (resolve, reject) {
+    var ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'csv') {
+      Papa.parse(file, {
+        skipEmptyLines: true,
+        complete: function (res) {
+          resolve(extractKeywordsFromTable(res.data));
+        },
+        error: reject,
+      });
+    } else if (ext === 'xlsx' || ext === 'xls') {
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          var wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+          var ws = wb.Sheets[wb.SheetNames[0]];
+          var rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+          resolve(extractKeywordsFromTable(rows));
+        } catch (err) { reject(err); }
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    } else {
+      reject(new Error('不支持的文件格式，请上传 CSV 或 XLSX 文件。'));
+    }
+  });
+}
+
+function extractKeywordsFromTable(rows) {
+  if (!rows || rows.length === 0) return [];
+  var header = rows[0];
+  var colIndex = 0;
+  // 自动识别列
+  for (var ci = 0; ci < header.length; ci++) {
+    var h = String(header[ci]).trim().toLowerCase();
+    if (h === '关键词' || h === 'keyword' || h === 'keywords') {
+      colIndex = ci;
+      break;
+    }
+  }
+  // 判断第一行是否为表头
+  var startRow = 1;
+  var firstCell = String(header[colIndex]).trim().toLowerCase();
+  if (firstCell === '关键词' || firstCell === 'keyword' || firstCell === 'keywords') {
+    startRow = 1;
+  } else {
+    // 无表头，从第0行读
+    startRow = 0;
+  }
+  var seen = {};
+  var keywords = [];
+  for (var r = startRow; r < rows.length; r++) {
+    var kw = String(rows[r][colIndex] || '').trim();
+    if (kw && !seen[kw]) {
+      seen[kw] = true;
+      keywords.push(kw);
+    }
+  }
+  return keywords;
+}
+
+// ---------- 进度面板 UI ----------
+function renderProgressPanel() {
+  var list = $('#keywordProgressList');
+  list.empty();
+  batchState.keywords.forEach(function (kw) {
+    var st = batchState.statuses[kw] || 'pending';
+    var count = batchState.results[kw] ? batchState.results[kw].length : 0;
+    var badgeText = { pending: '等待中', running: '进行中', done: '完成', failed: '失败' }[st];
+    var row = $('<div class="kw-row">');
+    row.append($('<span class="kw-name">').text(kw));
+    row.append($('<span class="kw-badge ' + st + '">').text(badgeText));
+    row.append($('<span class="kw-count">').text(count > 0 ? count + ' 条' : ''));
+    var bar = $('<div class="kw-mini-bar">').append($('<div class="kw-mini-fill ' + (st === 'running' ? 'running' : '') + '">').css('width', st === 'done' ? '100%' : st === 'failed' ? '30%' : '0%'));
+    row.append(bar);
+    list.append(row);
+  });
+  updateGlobalProgress();
+}
+
+function updateGlobalProgress() {
+  var total = batchState.keywords.length;
+  var done = batchState.keywords.filter(function (k) { return batchState.statuses[k] === 'done' || batchState.statuses[k] === 'failed'; }).length;
+  var pct = total > 0 ? Math.round(done / total * 100) : 0;
+  $('#batchProgressLabel').text(done + ' / ' + total + ' 关键词完成');
+  $('#batchProgressPct').text(pct + '%');
+  $('#batchProgressBar').css('width', pct + '%');
+  if (done === total && total > 0) {
+    $('#downloadMergedBtn').prop('disabled', false).css('opacity', '1');
+  }
+}
+
+// ---------- 文件名工具 ----------
+function getBatchDateStr() {
+  var now = batchState.startDate || new Date();
+  return now.getFullYear() +
+    String(now.getMonth() + 1).padStart(2, '0') +
+    String(now.getDate()).padStart(2, '0') + '_' +
+    String(now.getHours()).padStart(2, '0') +
+    String(now.getMinutes()).padStart(2, '0');
+}
+
+function safeFilename(kw) {
+  return kw.replace(/[\\/:*?"<>|]/g, '_').substring(0, 40);
+}
+
+// ---------- 保存单关键词 CSV ----------
+async function saveKeywordCSV(kw, data) {
+  var tableData = w(data);
+  tableData.data.forEach(function (row, ri) {
+    row.forEach(function (cell, ci) {
+      if (Array.isArray(cell)) tableData.data[ri][ci] = Papa.unparse([cell], { quotes: true, escapeChar: '"' });
+    });
+  });
+  var csvStr = Papa.unparse(tableData, { quotes: true, escapeChar: '"' });
+  var filename = 'douyin_' + safeFilename(kw) + '_' + getBatchDateStr() + '.csv';
+  var blob = new Blob(['\uFEFF' + csvStr], { type: 'text/csv;charset=utf-8;' });
+
+  if (batchState.saveDir) {
+    try {
+      var fh = await batchState.saveDir.getFileHandle(filename, { create: true });
+      var writable = await fh.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    } catch (e) {
+      console.warn('写入目录失败，改用浏览器下载', e);
+    }
+  }
+  saveAs(blob, filename);
+}
+
+// ---------- 保存合并 CSV ----------
+async function saveMergedCSV() {
+  var allRows = [];
+  var fields = null;
+  batchState.keywords.forEach(function (kw) {
+    var data = batchState.results[kw];
+    if (!data || data.length === 0) return;
+    var tableData = w(data);
+    if (!fields) fields = ['搜索关键词'].concat(tableData.fields);
+    tableData.data.forEach(function (row) {
+      allRows.push([kw].concat(row));
+    });
+  });
+  if (!fields) { alert('没有可合并的数据'); return; }
+  var merged = { fields: fields, data: allRows };
+  var csvStr = Papa.unparse(merged, { quotes: true, escapeChar: '"' });
+  var filename = 'douyin_all_keywords_' + getBatchDateStr() + '.csv';
+  var blob = new Blob(['\uFEFF' + csvStr], { type: 'text/csv;charset=utf-8;' });
+
+  if (batchState.saveDir) {
+    try {
+      var fh = await batchState.saveDir.getFileHandle(filename, { create: true });
+      var writable = await fh.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    } catch (e) {
+      console.warn('写入合并CSV失败，改用浏览器下载', e);
+    }
+  }
+  saveAs(blob, filename);
+}
+
+// ---------- 单关键词搜索 ----------
+function searchOneKeyword(kw, onDone) {
+  // 重置采集状态
+  s.autoStartScraping = false;
+  s.data = [];
+  s.pages = 0;
+  s.lastRows = 0;
+  s.workingTime = 0;
+
+  var targetUrl = 'https://www.douyin.com/search/' + encodeURIComponent(kw) + '?type=video';
+
+  chrome.tabs.update(i.id, { url: targetUrl }, function () {
+    function listener(tabId, changeInfo) {
+      if (changeInfo.status === 'complete' && tabId === i.id) {
+        chrome.tabs.onUpdated.removeListener(listener);
+        i.url = targetUrl;
+        // 等待页面内容脚本就绪
+        setTimeout(function () {
+          R(); // findTables → x() → 触发 content ready
+          // 等 content ready 完成后启动采集
+          var waitForReady = setInterval(function () {
+            if (!batchState.running) {
+              clearInterval(waitForReady);
+              onDone(s.data);
+              return;
+            }
+            // x() 完成后 s.startingUrl 已设置，且 #content 可见
+            if (s.startingUrl && s.startingUrl.includes(encodeURIComponent(kw))) {
+              clearInterval(waitForReady);
+              // 启动滚动采集
+              T();
+              // 监控采集完成
+              watchForCompletion(onDone);
+            }
+          }, 500);
+        }, 1500);
+      }
+    }
+    chrome.tabs.onUpdated.addListener(listener);
+  });
+}
+
+// ---------- 监控采集完成（无新增则停止）----------
+function watchForCompletion(onDone) {
+  batchState.lastDataLen = s.data.length;
+  batchState.stableCount = 0;
+  if (batchState.stableCheckTimer) clearInterval(batchState.stableCheckTimer);
+
+  batchState.stableCheckTimer = setInterval(function () {
+    if (!batchState.running) {
+      clearInterval(batchState.stableCheckTimer);
+      onDone(s.data);
+      return;
+    }
+    if (!s.scraping) {
+      // 爬取已停止（手动或出错），结束
+      clearInterval(batchState.stableCheckTimer);
+      onDone(s.data);
+      return;
+    }
+    var currentLen = s.data.length;
+    if (currentLen === batchState.lastDataLen) {
+      batchState.stableCount++;
+      // 连续 3 次（约 15s）无新增，认为已全部采集
+      if (batchState.stableCount >= 3) {
+        clearInterval(batchState.stableCheckTimer);
+        L(); // 停止爬取
+        setTimeout(function () { onDone(s.data); }, 500);
+      }
+    } else {
+      batchState.lastDataLen = currentLen;
+      batchState.stableCount = 0;
+      // 更新进度条中的视频数
+      var runningKw = batchState.keywords[batchState.currentIndex];
+      if (runningKw) {
+        $('#keywordProgressList .kw-row').eq(batchState.currentIndex).find('.kw-count').text(currentLen + ' 条');
+      }
+    }
+  }, 5000);
+}
+
+// ---------- 顺序批量搜索调度 ----------
+async function startBatchSearch() {
+  batchState.running = true;
+  batchState.currentIndex = 0;
+  batchState.startDate = new Date();
+
+  async function processNext() {
+    if (!batchState.running || batchState.currentIndex >= batchState.keywords.length) {
+      batchState.running = false;
+      updateGlobalProgress();
+      if (batchState.currentIndex >= batchState.keywords.length) {
+        // 全部完成，自动触发合并下载
+        await saveMergedCSV();
+        alert('✅ 批量搜索完成！合并文件已保存。');
+      }
+      return;
+    }
+
+    var kw = batchState.keywords[batchState.currentIndex];
+    batchState.statuses[kw] = 'running';
+    renderProgressPanel();
+
+    searchOneKeyword(kw, async function (data) {
+      if (!batchState.running) return;
+      batchState.results[kw] = data || [];
+      batchState.statuses[kw] = (data && data.length > 0) ? 'done' : 'failed';
+      renderProgressPanel();
+
+      // 保存单关键词 CSV
+      if (data && data.length > 0) {
+        try {
+          await saveKeywordCSV(kw, data);
+        } catch (e) {
+          console.warn('保存关键词CSV失败', kw, e);
+        }
+      }
+
+      batchState.currentIndex++;
+      // 关键词间短暂停顿，避免过快切换
+      setTimeout(processNext, 1500);
+    });
+  }
+
+  processNext();
+}
+
+// ---------- 事件绑定（追加到 I() 的逻辑之外） ----------
+$(document).ready(function () {
+  $('#importKeywordsBtn').click(function () {
+    $('#keywordFileInput').val('').click();
+  });
+
+  $('#keywordFileInput').on('change', async function (e) {
+    var file = e.target.files[0];
+    if (!file) return;
+
+    var keywords;
+    try {
+      keywords = await parseKeywordFile(file);
+    } catch (err) {
+      alert('文件解析失败：' + err.message);
+      return;
+    }
+    if (keywords.length === 0) {
+      alert('未在文件中找到任何关键词，请检查文件格式。');
+      return;
+    }
+
+    // 询问保存文件夹
+    batchState.saveDir = null;
+    if (window.showDirectoryPicker) {
+      var choose = confirm(
+        '找到 ' + keywords.length + ' 个关键词。\n\n' +
+        '是否选择保存文件夹？\n' +
+        '（点击"确定"选择文件夹，"取消"则自动下载到默认下载目录）'
+      );
+      if (choose) {
+        try {
+          batchState.saveDir = await window.showDirectoryPicker({ mode: 'readwrite' });
+        } catch (e) {
+          // 用户取消选择，使用默认下载
+          batchState.saveDir = null;
+        }
+      }
+    }
+
+    // 初始化状态
+    batchState.keywords = keywords;
+    batchState.results = {};
+    batchState.statuses = {};
+    keywords.forEach(function (kw) { batchState.statuses[kw] = 'pending'; });
+    batchState.currentIndex = 0;
+    batchState.running = false;
+    $('#downloadMergedBtn').prop('disabled', true).css('opacity', '0.5');
+
+    // 展示进度面板
+    $('#batchProgressPanel').show();
+    renderProgressPanel();
+
+    // 开始批量搜索
+    startBatchSearch();
+  });
+
+  $('#cancelBatchBtn').click(function () {
+    if (!batchState.running) return;
+    batchState.running = false;
+    if (batchState.stableCheckTimer) clearInterval(batchState.stableCheckTimer);
+    L(); // 停止当前爬取
+    // 标记剩余为失败
+    for (var idx = batchState.currentIndex; idx < batchState.keywords.length; idx++) {
+      var kw = batchState.keywords[idx];
+      if (batchState.statuses[kw] === 'pending' || batchState.statuses[kw] === 'running') {
+        batchState.statuses[kw] = 'failed';
+      }
+    }
+    renderProgressPanel();
+    alert('已取消批量搜索。');
+  });
+
+  $('#downloadMergedBtn').click(function () {
+    saveMergedCSV();
+  });
+});

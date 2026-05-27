@@ -47,3 +47,83 @@ body {
 #infinateScrollElement {
     margin-left: 5px;
 }
+
+/* ===== 批量搜索进度面板 ===== */
+#keywordProgressList::-webkit-scrollbar {
+    width: 4px;
+}
+#keywordProgressList::-webkit-scrollbar-track {
+    background: #f9e8eb;
+    border-radius: 2px;
+}
+#keywordProgressList::-webkit-scrollbar-thumb {
+    background: #fe2c55;
+    border-radius: 2px;
+}
+
+.kw-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 4px;
+    border-bottom: 1px solid #f8e0e4;
+    font-size: 12px;
+}
+.kw-row:last-child {
+    border-bottom: none;
+}
+.kw-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #333;
+    font-weight: 500;
+}
+.kw-count {
+    color: #888;
+    min-width: 50px;
+    text-align: right;
+    font-size: 11px;
+}
+.kw-badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: bold;
+    min-width: 50px;
+    text-align: center;
+}
+.kw-badge.pending  { background: #e8e8e8; color: #888; }
+.kw-badge.running  { background: #fff0c0; color: #b07000; }
+.kw-badge.done     { background: #d4f8e0; color: #1a7a3a; }
+.kw-badge.failed   { background: #fde0e0; color: #c0392b; }
+
+/* 进行中关键词的mini进度条 */
+.kw-mini-bar {
+    width: 60px;
+    height: 4px;
+    background: #f0d0d5;
+    border-radius: 2px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.kw-mini-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: #fe2c55;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+.kw-mini-fill.running {
+    width: 100%;
+    background: linear-gradient(90deg, #fe2c55 25%, #ffb3c0 50%, #fe2c55 75%);
+    background-size: 200% 100%;
+    animation: kw-stripe 1.2s linear infinite;
+}
+@keyframes kw-stripe {
+    0%   { background-position: 200% 0; }
+    100% { background-position: 0% 0; }
+}
+

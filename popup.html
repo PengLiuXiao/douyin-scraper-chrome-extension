@@ -27,6 +27,38 @@
                       </button>
                   </span>
               </div>
+
+              <!-- 批量关键词导入 -->
+              <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px;">
+                <button class="btn btn-default btn-sm" id="importKeywordsBtn" type="button" style="background:#fff3f5;border-color:#fe2c55;color:#fe2c55;font-weight:bold;">
+                  <span class="glyphicon glyphicon-upload"></span> 批量导入关键词
+                </button>
+                <span style="color:#999;font-size:12px;">支持 CSV / XLSX 文件</span>
+                <input type="file" id="keywordFileInput" accept=".csv,.xlsx" style="display:none;">
+              </div>
+
+              <!-- 批量搜索进度面板 -->
+              <div id="batchProgressPanel" style="display:none; margin-top:12px; border:1px solid #f0c0c8; border-radius:8px; background:#fff9fa; padding:10px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                  <strong style="color:#fe2c55;font-size:13px;"><span class="glyphicon glyphicon-tasks"></span> 批量搜索进度</strong>
+                  <div style="display:flex;gap:6px;">
+                    <button class="btn btn-xs btn-warning" id="cancelBatchBtn" type="button">取消批量</button>
+                    <button class="btn btn-xs btn-success" id="downloadMergedBtn" type="button" disabled style="opacity:0.5;"><span class="glyphicon glyphicon-download-alt"></span> 下载合并CSV</button>
+                  </div>
+                </div>
+                <!-- 全局进度条 -->
+                <div style="margin-bottom:8px;">
+                  <div style="display:flex;justify-content:space-between;font-size:11px;color:#666;margin-bottom:3px;">
+                    <span id="batchProgressLabel">0 / 0 关键词完成</span>
+                    <span id="batchProgressPct">0%</span>
+                  </div>
+                  <div style="background:#f0d0d5;border-radius:4px;height:6px;overflow:hidden;">
+                    <div id="batchProgressBar" style="width:0%;height:100%;background:linear-gradient(90deg,#fe2c55,#ff6b8a);border-radius:4px;transition:width 0.4s ease;"></div>
+                  </div>
+                </div>
+                <!-- 关键词列表 -->
+                <div id="keywordProgressList" style="max-height:200px;overflow-y:auto;"></div>
+              </div>
           </div>
 
           <div class="col-xs-5">
