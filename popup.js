@@ -143,6 +143,7 @@ var i = { id: null, url: null },
 
 // tab 状态存储
 var tabStates = {};
+var findTableAttempts = 0;
 
 // 从URL参数获取tab信息
 function getUrlParams() {
@@ -185,6 +186,8 @@ function switchToTab(tabId, url) {
   // 更新当前标签页信息
   i.id = tabId;
   i.url = url;
+  i.reloaded = false;
+  findTableAttempts = 0;
 
   // 恢复或初始化状态
   if (tabStates[tabId]) {
@@ -713,10 +716,22 @@ function R() {
     i.id,
     { action: "findTables", robots: l },
     function (e) {
-      if (chrome.runtime.lastError) {
-        console.warn("R: findTables error:", chrome.runtime.lastError.message);
-        x(null, !0);
+      if (chrome.runtime.lastError || !e) {
+        if (chrome.runtime.lastError) {
+          console.warn("R: findTables error:", chrome.runtime.lastError.message);
+        } else {
+          console.warn("R: findTables returned empty result.");
+        }
+        findTableAttempts++;
+        if (findTableAttempts < 10) {
+          console.log("R: Retrying findTables in 1s... attempt " + findTableAttempts);
+          setTimeout(R, 1000);
+        } else {
+          findTableAttempts = 0;
+          x(null, !0);
+        }
       } else {
+        findTableAttempts = 0;
         x(e, !0);
       }
     },
@@ -975,6 +990,8 @@ function I() {
         return;
       }
       $("#noResponseErr").hide().text("");
+      i.reloaded = false;
+      findTableAttempts = 0;
       s.autoStartScraping = !0;
       s.data = [];
       s.pages = 0;
@@ -1294,6 +1311,8 @@ function searchOneKeyword(kw, onDone) {
   s.pages = 0;
   s.lastRows = 0;
   s.workingTime = 0;
+  i.reloaded = false;
+  findTableAttempts = 0;
 
   var targetUrl = 'https://www.douyin.com/search/' + encodeURIComponent(kw) + '?type=video';
 
