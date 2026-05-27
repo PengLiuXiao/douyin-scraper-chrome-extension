@@ -418,7 +418,15 @@ function x(e, t) {
       deletedFields: {},
       crawlDelay: 1e3,
       maxWait: 2e4,
+      stopTimeLimit: 15,
+      stopScrollLimit: 3,
     }),
+    (s.config.stopTimeLimit = s.config.stopTimeLimit || 15),
+    (s.config.stopScrollLimit = s.config.stopScrollLimit || 3),
+    $("#crawlDelay").val(s.config.crawlDelay / 1e3),
+    $("#maxWait").val(s.config.maxWait / 1e3),
+    $("#stopTimeLimit").val(s.config.stopTimeLimit),
+    $("#stopScrollLimit").val(s.config.stopScrollLimit),
     r(
       t
         ? () => a.firePageViewEvent(s.hostName, s.startingUrl)
@@ -561,6 +569,8 @@ function D(e) {
     (s.data = Array.from(t, (e) => JSON.parse(e))));
 }
 function T() {
+  var noNewDataCount = 0;
+  var lastNewDataTime = new Date();
   ((s.gettingNext = !1),
     (s.scraping = !0),
     $("#startScraping").hide(),
@@ -603,25 +613,53 @@ function T() {
                     p("", "instructions"),
                     p(e.error, e.errorId || "error", !0)
                   );
-                (e.failedToProcess
-                  ? (p(
-                      "Failed to process rows. Showing raw data instead.",
-                      "error",
-                      !1,
-                    ),
-                    (s.failedToProcess = !0),
-                    (s.processingError = e.processingError))
-                  : ($("#error").hide(), (s.failedToProcess = !1)),
-                  (s.lastRows = e.data.length),
-                  s.pages++,
-                  (s.workingTime += new Date() - t),
-                  (t = new Date()),
-                  D(e.data),
-                  q(),
-                  s.previewLength < c
-                    ? v()
-                    : p("预览仅显示前 1000 条，完整数据请下载。", "previewLimit"),
-                  s.scraping && n());
+                if (e.failedToProcess) {
+                  p("Failed to process rows. Showing raw data instead.", "error", !1);
+                  s.failedToProcess = !0;
+                  s.processingError = e.processingError;
+                } else {
+                  $("#error").hide();
+                  s.failedToProcess = !1;
+                }
+                s.lastRows = e.data.length;
+                s.pages++;
+                s.workingTime += new Date() - t;
+                t = new Date();
+
+                var prevLength = s.data.length;
+                D(e.data);
+                var currentLength = s.data.length;
+
+                if (currentLength > prevLength) {
+                  noNewDataCount = 0;
+                  lastNewDataTime = new Date();
+                } else {
+                  noNewDataCount++;
+                }
+
+                q();
+                if (s.previewLength < c) {
+                  v();
+                } else {
+                  p("预览仅显示前 1000 条，完整数据请下载。", "previewLimit");
+                }
+
+                var secondsSinceLastNewData = (new Date() - lastNewDataTime) / 1000;
+                if (noNewDataCount >= s.config.stopScrollLimit || secondsSinceLastNewData >= s.config.stopTimeLimit) {
+                  s.scraping = false;
+                  $("#startScraping").show();
+                  $("#stopScraping").hide();
+                  if (typeof batchState !== 'undefined' && batchState.running) {
+                    console.log("检测到页面无新增，已自动停止采集（批量模式）。");
+                  } else {
+                    p("检测到页面无新增，已自动停止采集。", "instructions");
+                  }
+                  return;
+                }
+
+                if (s.scraping) {
+                  n();
+                }
               }
             },
           );
@@ -656,6 +694,24 @@ function I() {
         if (isNaN(e) || parseInt(1e3 * e) <= s.config.crawlDelay)
           return p("Bad max waiting value", "inputError");
         (p("", "inputError"), (s.config.maxWait = parseInt(1e3 * e)), S());
+      },
+    ),
+    $("#stopTimeLimit").bind(
+      "propertychange change click keyup input paste",
+      function () {
+        var e = $(this).val();
+        if (isNaN(e) || e < 5 || e > 60)
+          return p("停止时间上限范围为 5 至 60 秒", "inputError");
+        (p("", "inputError"), (s.config.stopTimeLimit = parseInt(e)), S());
+      },
+    ),
+    $("#stopScrollLimit").bind(
+      "propertychange change click keyup input paste",
+      function () {
+        var e = $(this).val();
+        if (isNaN(e) || e < 1 || e > 10)
+          return p("连续无新增次数范围为 1 至 10 次", "inputError");
+        (p("", "inputError"), (s.config.stopScrollLimit = parseInt(e)), S());
       },
     ),
     $("#resetColumns").click(function () {
@@ -1009,10 +1065,8 @@ function searchOneKeyword(kw, onDone) {
   });
 }
 
-// ---------- 监控采集完成（无新增则停止）----------
+// ---------- 监控采集完成（检测 s.scraping 为 false 则进入下一步）----------
 function watchForCompletion(onDone) {
-  batchState.lastDataLen = s.data.length;
-  batchState.stableCount = 0;
   if (batchState.stableCheckTimer) clearInterval(batchState.stableCheckTimer);
 
   batchState.stableCheckTimer = setInterval(function () {
@@ -1022,30 +1076,18 @@ function watchForCompletion(onDone) {
       return;
     }
     if (!s.scraping) {
-      // 爬取已停止（手动或出错），结束
+      // 爬取已停止（手动、自动检测或出错），结束当前关键字的采集，进入下一步
       clearInterval(batchState.stableCheckTimer);
       onDone(s.data);
       return;
     }
+    // 更新进度条中的视频数
     var currentLen = s.data.length;
-    if (currentLen === batchState.lastDataLen) {
-      batchState.stableCount++;
-      // 连续 3 次（约 15s）无新增，认为已全部采集
-      if (batchState.stableCount >= 3) {
-        clearInterval(batchState.stableCheckTimer);
-        L(); // 停止爬取
-        setTimeout(function () { onDone(s.data); }, 500);
-      }
-    } else {
-      batchState.lastDataLen = currentLen;
-      batchState.stableCount = 0;
-      // 更新进度条中的视频数
-      var runningKw = batchState.keywords[batchState.currentIndex];
-      if (runningKw) {
-        $('#keywordProgressList .kw-row').eq(batchState.currentIndex).find('.kw-count').text(currentLen + ' 条');
-      }
+    var runningKw = batchState.keywords[batchState.currentIndex];
+    if (runningKw) {
+      $('#keywordProgressList .kw-row').eq(batchState.currentIndex).find('.kw-count').text(currentLen + ' 条');
     }
-  }, 5000);
+  }, 1000);
 }
 
 // ---------- 顺序批量搜索调度 ----------
