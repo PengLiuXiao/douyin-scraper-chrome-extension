@@ -9,13 +9,19 @@
     "storage",
     "clipboardWrite",
     "notifications",
-    "scripting"
+    "scripting",
+    "sidePanel",
+    "tabs",
+    "downloads"
   ],
   "host_permissions": [
     "*://*.douyin.com/*"
   ],
   "action": {
     "default_title": "DouyinURL提取Pro - AI智能检测"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
   },
   "content_scripts": [
     {

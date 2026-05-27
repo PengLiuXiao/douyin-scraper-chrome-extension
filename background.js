@@ -1,3 +1,6 @@
 /* DouyinURL提取Pro - background service worker */
 
-chrome.action.onClicked.addListener(function(e){chrome.windows.getCurrent(function(e){parentWindowId=e.id}),chrome.windows.create({url:chrome.runtime.getURL("popup.html?tabid="+encodeURIComponent(e.id)+"&url="+encodeURIComponent(e.url)),type:"popup",width:720,height:650})});
+// 开启侧边栏行为
+chrome.sidePanel
+  .setPanelBehavior({ openPanelOnActionClick: true })
+  .catch((error) => console.error(error));

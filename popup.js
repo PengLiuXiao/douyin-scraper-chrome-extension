@@ -1,5 +1,25 @@
 /* DouyinURL提取Pro - popup controller */
 
+function triggerDownload(blob, filename) {
+  var subfolder = (s.config && s.config.downloadFolder) ? s.config.downloadFolder.trim() : "douyin-url-extractor";
+  var finalFilename = filename;
+  if (subfolder) {
+    var cleanSubfolder = subfolder.replace(/[\\:*?"<>|]/g, '');
+    finalFilename = cleanSubfolder + "/" + filename;
+  }
+  
+  var url = URL.createObjectURL(blob);
+  chrome.downloads.download({
+    url: url,
+    filename: finalFilename,
+    conflictAction: 'uniquify'
+  }, function(downloadId) {
+    setTimeout(function() {
+      URL.revokeObjectURL(url);
+    }, 10000);
+  });
+}
+
 function e(e, t, n, o, r, a, i) {
   var s = {},
     c = null,
@@ -121,6 +141,9 @@ var i = { id: null, url: null },
   c = 1e3,
   l = null;
 
+// tab 状态存储
+var tabStates = {};
+
 // 从URL参数获取tab信息
 function getUrlParams() {
   var params = new URLSearchParams(window.location.search);
@@ -137,23 +160,135 @@ if (urlParams.tabid && urlParams.url) {
   i.url = urlParams.url;
   // 启动初始化
   d();
+} else {
+  // 侧边栏模式：初始化当前激活的标签页
+  initActiveTab();
 }
+
+async function initActiveTab() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab) {
+    switchToTab(tab.id, tab.url);
+  }
+}
+
+function switchToTab(tabId, url) {
+  // 如果正在采集同一标签页同一 URL，不做处理
+  if (i.id === tabId && i.url === url) return;
+
+  // 保存当前 tab 状态
+  if (i.id) {
+    s.keyword = $("#douyinSearchKeyword").val();
+    tabStates[i.id] = JSON.parse(JSON.stringify(s));
+  }
+
+  // 更新当前标签页信息
+  i.id = tabId;
+  i.url = url;
+
+  // 恢复或初始化状态
+  if (tabStates[tabId]) {
+    s = tabStates[tabId];
+    // 恢复 UI 控件
+    $("#douyinSearchKeyword").val(s.keyword || "");
+    $("#crawlDelay").val((s.config.crawlDelay || 1000) / 1000);
+    $("#maxWait").val((s.config.maxWait || 20000) / 1000);
+    $("#stopTimeLimit").val(s.config.stopTimeLimit || 15);
+    $("#stopScrollLimit").val(s.config.stopScrollLimit || 3);
+    $("#downloadFolder").val(s.config.downloadFolder || 'douyin-url-extractor');
+  } else {
+    // 初始化空状态
+    s = {
+      data: [],
+      pages: 0,
+      lastRows: 0,
+      workingTime: 0,
+      scraping: false,
+      failedToProcess: false,
+      processingError: null,
+      tableSelector: "",
+      startingUrl: "",
+      hostName: "",
+      previewLength: 0,
+      configName: "",
+      config: {
+        headers: {},
+        deletedFields: {},
+        crawlDelay: 1000,
+        maxWait: 20000,
+        stopTimeLimit: 15,
+        stopScrollLimit: 3,
+        downloadFolder: 'douyin-url-extractor'
+      }
+    };
+    $("#douyinSearchKeyword").val("");
+    $("#downloadFolder").val('douyin-url-extractor');
+  }
+
+  // 启动初始化
+  d();
+}
+
+// 监听标签页切换
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  try {
+    const tab = await chrome.tabs.get(activeInfo.tabId);
+    if (tab && tab.active) {
+      switchToTab(tab.id, tab.url);
+    }
+  } catch (err) {
+    console.warn("Get active tab error:", err);
+  }
+});
+
+// 监听标签页 URL 更新
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (tabId === i.id && changeInfo.url) {
+    switchToTab(tabId, changeInfo.url);
+  }
+});
+
+// 监听标签页关闭，释放内存
+chrome.tabs.onRemoved.addListener((tabId) => {
+  delete tabStates[tabId];
+});
 
 async function d() {
   if (!i.url || !i.url.toLowerCase().includes('douyin.com')) {
     $("#waitHeader").hide();
     p("DouyinURL提取Pro 仅支持抖音网站（douyin.com），请先在浏览器中打开抖音页面再使用本扩展。", "noResponseErr", false, false);
+    $("#content").hide();
+    $("#wait").show();
     return;
   }
-  I();
-  setTimeout(function () {
-    console.log("no response");
-    $("#waitHeader").is(":visible") && y(true);
-  }, 5e4);
-  $(window).resize(function () {
+  $("#noResponseErr").hide().text("");
+  $("#waitHeader").hide();
+  $("#wait").hide();
+  $("#content").show();
+
+  $(window).off("resize").on("resize", function () {
     v();
   });
-  R();
+
+  // 如果已经有缓存的数据，直接恢复 UI 并渲染表格，无需重新获取
+  if (s.data && s.data.length > 0) {
+    v();
+    q();
+    if (s.scraping) {
+      $("#startScraping").hide();
+      $("#stopScraping").show();
+    } else {
+      $("#startScraping").show();
+      $("#stopScraping").hide();
+    }
+  } else {
+    // 否则正常查找页面表格
+    setTimeout(function () {
+      console.log("no response");
+      $("#waitHeader").is(":visible") && y(true);
+    }, 5e4);
+    R();
+  }
 }
 function f(e, t) {
   return (t || ".") + e.replace(/[!"#$%&'()*+,.\/:;<=>?@[\\\]^`{|}~]/g, "\\$&");
@@ -422,13 +557,16 @@ function x(e, t) {
       maxWait: 2e4,
       stopTimeLimit: 15,
       stopScrollLimit: 3,
+      downloadFolder: 'douyin-url-extractor'
     }),
     (s.config.stopTimeLimit = s.config.stopTimeLimit || 15),
     (s.config.stopScrollLimit = s.config.stopScrollLimit || 3),
+    (s.config.downloadFolder = s.config.downloadFolder !== undefined ? s.config.downloadFolder : 'douyin-url-extractor'),
     $("#crawlDelay").val(s.config.crawlDelay / 1e3),
     $("#maxWait").val(s.config.maxWait / 1e3),
     $("#stopTimeLimit").val(s.config.stopTimeLimit),
     $("#stopScrollLimit").val(s.config.stopScrollLimit),
+    $("#downloadFolder").val(s.config.downloadFolder),
     r(
       t
         ? () => a.firePageViewEvent(s.hostName, s.startingUrl)
@@ -521,7 +659,7 @@ function x(e, t) {
                   }));
               });
             }),
-              saveAs(
+              triggerDownload(
                 new Blob([Papa.unparse(e, { quotes: !0, escapeChar: '"' })], {
                   type: "application/octet-stream",
                 }),
@@ -532,7 +670,7 @@ function x(e, t) {
           .off("click")
           .click(function () {
             (r(b),
-              saveAs(
+              triggerDownload(
                 new Blob([m(o(w(s.data), i.url.substring(0, 100)))], {
                   type: "application/octet-stream",
                 }),
@@ -718,6 +856,14 @@ function I() {
         if (isNaN(e) || e < 1 || e > 10)
           return p("连续无新增次数范围为 1 至 10 次", "inputError");
         (p("", "inputError"), (s.config.stopScrollLimit = parseInt(e)), S());
+      },
+    ),
+    $("#downloadFolder").bind(
+      "propertychange change click keyup input paste",
+      function () {
+        var e = $(this).val().trim();
+        var clean = e.replace(/[\\:*?"<>|]/g, '');
+        (s.config.downloadFolder = clean, S());
       },
     ),
     $("#resetColumns").click(function () {
@@ -1004,7 +1150,7 @@ async function saveKeywordCSV(kw, data) {
       console.warn('写入目录失败，改用浏览器下载', e);
     }
   }
-  saveAs(blob, filename);
+  triggerDownload(blob, filename);
 }
 
 // ---------- 保存合并 CSV ----------
@@ -1037,7 +1183,7 @@ async function saveMergedCSV() {
       console.warn('写入合并CSV失败，改用浏览器下载', e);
     }
   }
-  saveAs(blob, filename);
+  triggerDownload(blob, filename);
 }
 
 // ---------- 单关键词搜索 ----------
@@ -1156,6 +1302,7 @@ async function startBatchSearch() {
 
 // ---------- 事件绑定（追加到 I() 的逻辑之外） ----------
 $(document).ready(function () {
+  I();
   $('#importKeywordsBtn').click(function () {
     $('#keywordFileInput').val('').click();
   });
