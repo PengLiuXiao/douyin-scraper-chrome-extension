@@ -541,6 +541,7 @@ function x(e, t) {
               (chrome.tabs.onUpdated.removeListener(e), R());
           });
         }));
+  $("#noResponseErr").hide().text("");
   ((s.tableId = e.tableId),
     (s.scraping = !1),
     (s.failedToProcess = !1),
@@ -609,6 +610,9 @@ function x(e, t) {
       console.warn("x: getTableData error:", chrome.runtime.lastError.message);
       p("获取数据时出错，请刷新页面重试。", "noResponseErr", !0);
       return;
+    }
+    if (e && !e.error) {
+      $("#noResponseErr").hide().text("");
     }
     e && e.error
       ? p("获取数据时出错，请刷新页面重试。", "noResponseErr", !0)
@@ -730,6 +734,7 @@ function D(e) {
 function T() {
   var noNewDataCount = 0;
   var lastNewDataTime = new Date();
+  $("#noResponseErr").hide().text("");
   ((s.gettingNext = !1),
     (s.scraping = !0),
     $("#startScraping").hide(),
@@ -969,6 +974,7 @@ function I() {
         alert("请输入搜索关键词！");
         return;
       }
+      $("#noResponseErr").hide().text("");
       s.autoStartScraping = !0;
       s.data = [];
       s.pages = 0;
