@@ -136,5 +136,21 @@ body {
     #stats {
         margin-top: 10px !important;
     }
+    .input-group {
+        display: flex !important;
+        flex-direction: row;
+        width: 100% !important;
+    }
+    .input-group-addon {
+        width: auto !important;
+        flex: 0 0 auto;
+        display: flex !important;
+        align-items: center;
+    }
+    .input-group .form-control {
+        flex: 1 1 auto;
+        min-width: 50px !important;
+        display: block !important;
+    }
 }
 

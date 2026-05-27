@@ -166,7 +166,7 @@ if (urlParams.tabid && urlParams.url) {
 }
 
 async function initActiveTab() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   if (tab) {
     switchToTab(tab.id, tab.url);
   }
@@ -604,6 +604,11 @@ function x(e, t) {
     $("#importKeywordsBtn").show();
   }
   chrome.tabs.sendMessage(i.id, { action: "getTableData" }, function (e) {
+    if (chrome.runtime.lastError) {
+      console.warn("x: getTableData error:", chrome.runtime.lastError.message);
+      p("获取数据时出错，请刷新页面重试。", "noResponseErr", !0);
+      return;
+    }
     e && e.error
       ? p("获取数据时出错，请刷新页面重试。", "noResponseErr", !0)
       : e.tableId == s.tableId &&
@@ -624,7 +629,11 @@ function x(e, t) {
               i.id,
               { action: "markNextButton", selector: s.nextSelector },
               function (e) {
-                e.error || $("#startScraping").show();
+                if (chrome.runtime.lastError) {
+                  console.warn("markNextButton error:", chrome.runtime.lastError.message);
+                } else if (e) {
+                  e.error || $("#startScraping").show();
+                }
               },
             )),
         $("#wait").hide(),
@@ -699,7 +708,12 @@ function R() {
     i.id,
     { action: "findTables", robots: l },
     function (e) {
-      x(e, !0);
+      if (chrome.runtime.lastError) {
+        console.warn("R: findTables error:", chrome.runtime.lastError.message);
+        x(null, !0);
+      } else {
+        x(e, !0);
+      }
     },
   );
 }
@@ -727,6 +741,10 @@ function T() {
     const o = function (e) {
       let t = { action: "scrollDown", selector: s.tableSelector };
       chrome.tabs.sendMessage(i.id, t, function (t) {
+        if (chrome.runtime.lastError) {
+          console.warn("scrollDown error:", chrome.runtime.lastError.message);
+          return;
+        }
         if (t && t.error)
           return (p("", "instructions"), p(t.error, t.errorId || "error", !0));
         ($("#wrongTable").hide(), e());
@@ -737,6 +755,10 @@ function T() {
         i.id,
         { action: "clickNext", selector: s.nextSelector },
         function (t) {
+          if (chrome.runtime.lastError) {
+            console.warn("clickNext error:", chrome.runtime.lastError.message);
+            return;
+          }
           if (t && t.error)
             return (p("", "instructions"), p(t.error, t.errorId, !0));
           ($("#wrongTable").hide(), e());
@@ -751,6 +773,10 @@ function T() {
             i.id,
             { action: "getTableData", selector: s.tableSelector },
             function (e) {
+              if (chrome.runtime.lastError) {
+                console.warn("getTableData error:", chrome.runtime.lastError.message);
+                return;
+              }
               if (e) {
                 if (e.error)
                   return (
@@ -814,7 +840,11 @@ function T() {
         s.config.crawlDelay,
         function (e) {
           chrome.tabs.sendMessage(i.id, {}, function (t) {
-            e(void 0 !== t);
+            if (chrome.runtime.lastError) {
+              e(false);
+            } else {
+              e(void 0 !== t);
+            }
           });
         },
       ));
