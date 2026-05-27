@@ -388,6 +388,8 @@ function S() {
 function y(e) {
   $("#waitHeader").hide();
   p("页面响应超时，请刷新抖音页面后重试。", "noResponseErr", false, false);
+  $("#douyinSearchBtn").prop("disabled", false);
+  $("#startScraping").prop("disabled", false);
 }
 function k() {
   return localStorage.getItem("nextSelector:" + s.hostName);
@@ -460,6 +462,8 @@ function x(e, t) {
     n += "_" + dateStr;
     $("#startScraping").show();
     $("#douyinSearchPanel").show();
+    $("#douyinSearchBtn").show();
+    $("#importKeywordsBtn").show();
   }
   chrome.tabs.sendMessage(i.id, { action: "getTableData" }, function (e) {
     e && e.error
@@ -487,6 +491,8 @@ function x(e, t) {
             )),
         $("#wait").hide(),
         $("#content").show(),
+        $("#douyinSearchBtn").prop("disabled", false),
+        $("#startScraping").prop("disabled", false),
         p(
           '可点击“开始爬取”滚动采集更多数据，或直接下载已获取的数据。',
           "instructions",
@@ -728,33 +734,23 @@ function I() {
       s.pages = 0;
       s.lastRows = 0;
       s.workingTime = 0;
-      $("#content").hide();
-      $("#waitHeader").text("正在跳转并初始化搜索...").show();
-      $("#wait").show();
-      chrome.tabs.update(
-        i.id,
-        {
-          url:
-            "https://www.douyin.com/search/" +
-            encodeURIComponent(keyword) +
-            "?type=video",
-        },
-        function (tab) {
-          function listener(tabId, changeInfo) {
-            "complete" === changeInfo.status &&
-              tabId === i.id &&
-              (chrome.tabs.onUpdated.removeListener(listener),
-              (i.url =
-                "https://www.douyin.com/search/" +
-                encodeURIComponent(keyword) +
-                "?type=video"),
-              setTimeout(function () {
-                R();
-              }, 1500));
-          }
-          chrome.tabs.onUpdated.addListener(listener);
-        },
-      );
+      $("#douyinSearchBtn").prop("disabled", true);
+      $("#startScraping").prop("disabled", true);
+      p("正在跳转并初始化搜索，请稍候...", "instructions");
+
+      var targetUrl = "https://www.douyin.com/search/" + encodeURIComponent(keyword) + "?type=video";
+
+      function listener(tabId, changeInfo) {
+        if (changeInfo.status === 'complete' && tabId === i.id) {
+          chrome.tabs.onUpdated.removeListener(listener);
+          i.url = targetUrl;
+          setTimeout(function () {
+            R();
+          }, 1500);
+        }
+      }
+      chrome.tabs.onUpdated.addListener(listener);
+      chrome.tabs.update(i.id, { url: targetUrl });
     }),
     $("#douyinSearchKeyword").keypress(function (e) {
       13 === e.which && $("#douyinSearchBtn").click();
@@ -836,7 +832,28 @@ function U(e, t) {
     );
   });
 }
-($("#startScraping").click(T));
+$("#startScraping").click(function () {
+  var keyword = $("#douyinSearchKeyword").val().trim();
+  if (keyword) {
+    var decodedUrl = "";
+    try {
+      decodedUrl = decodeURIComponent(i.url || "");
+    } catch (e) {
+      decodedUrl = i.url || "";
+    }
+    var searchPath = "/search/" + keyword;
+    if (decodedUrl.includes(searchPath)) {
+      // 已经在搜索该关键词的页面，直接开始爬取
+      T();
+    } else {
+      // 不在对应的搜索页面，触发搜索并提取
+      $("#douyinSearchBtn").click();
+    }
+  } else {
+    // 没有输入关键词，直接爬取当前页面
+    T();
+  }
+});
 
 /* ============================================================
    批量关键词导入搜索 — Batch Keyword Import & Search
@@ -1034,35 +1051,36 @@ function searchOneKeyword(kw, onDone) {
 
   var targetUrl = 'https://www.douyin.com/search/' + encodeURIComponent(kw) + '?type=video';
 
-  chrome.tabs.update(i.id, { url: targetUrl }, function () {
-    function listener(tabId, changeInfo) {
-      if (changeInfo.status === 'complete' && tabId === i.id) {
-        chrome.tabs.onUpdated.removeListener(listener);
-        i.url = targetUrl;
-        // 等待页面内容脚本就绪
-        setTimeout(function () {
-          R(); // findTables → x() → 触发 content ready
-          // 等 content ready 完成后启动采集
-          var waitForReady = setInterval(function () {
-            if (!batchState.running) {
-              clearInterval(waitForReady);
-              onDone(s.data);
-              return;
-            }
-            // x() 完成后 s.startingUrl 已设置，且 #content 可见
-            if (s.startingUrl && s.startingUrl.includes(encodeURIComponent(kw))) {
-              clearInterval(waitForReady);
-              // 启动滚动采集
-              T();
-              // 监控采集完成
-              watchForCompletion(onDone);
-            }
-          }, 500);
-        }, 1500);
-      }
+  function listener(tabId, changeInfo) {
+    if (changeInfo.status === 'complete' && tabId === i.id) {
+      chrome.tabs.onUpdated.removeListener(listener);
+      i.url = targetUrl;
+      // 等待页面内容脚本就绪
+      setTimeout(function () {
+        R(); // findTables → x() → 触发 content ready
+        // 等 content ready 完成后启动采集
+        var waitForReady = setInterval(function () {
+          if (!batchState.running) {
+            clearInterval(waitForReady);
+            onDone(s.data);
+            return;
+          }
+          // x() 完成后 s.startingUrl 已设置，且 #content 可见
+          var decodedUrl = "";
+          try { decodedUrl = decodeURIComponent(s.startingUrl); } catch(e) { decodedUrl = s.startingUrl; }
+          if (decodedUrl && decodedUrl.includes(kw)) {
+            clearInterval(waitForReady);
+            // 启动滚动采集
+            T();
+            // 监控采集完成
+            watchForCompletion(onDone);
+          }
+        }, 500);
+      }, 1500);
     }
-    chrome.tabs.onUpdated.addListener(listener);
-  });
+  }
+  chrome.tabs.onUpdated.addListener(listener);
+  chrome.tabs.update(i.id, { url: targetUrl });
 }
 
 // ---------- 监控采集完成（检测 s.scraping 为 false 则进入下一步）----------
@@ -1187,6 +1205,8 @@ $(document).ready(function () {
 
     // 展示进度面板
     $('#batchProgressPanel').show();
+    $('#cancelBatchBtn').show();
+    $('#downloadMergedBtn').show();
     renderProgressPanel();
 
     // 开始批量搜索
