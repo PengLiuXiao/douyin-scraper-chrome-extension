@@ -191,7 +191,7 @@ function switchToTab(tabId, url) {
     s = tabStates[tabId];
     // 恢复 UI 控件
     $("#douyinSearchKeyword").val(s.keyword || "");
-    $("#crawlDelay").val((s.config.crawlDelay || 1000) / 1000);
+    $("#crawlDelay").val((s.config.crawlDelay || 1500) / 1000);
     $("#maxWait").val((s.config.maxWait || 20000) / 1000);
     $("#stopTimeLimit").val(s.config.stopTimeLimit || 15);
     $("#stopScrollLimit").val(s.config.stopScrollLimit || 3);
@@ -214,7 +214,7 @@ function switchToTab(tabId, url) {
       config: {
         headers: {},
         deletedFields: {},
-        crawlDelay: 1000,
+        crawlDelay: 1500,
         maxWait: 20000,
         stopTimeLimit: 15,
         stopScrollLimit: 3,
@@ -550,18 +550,19 @@ function x(e, t) {
     (s.hostName = e.hostname),
     (s.previewLength = 0),
     (s.configName = e.hostname + "-config"),
-    (s.config = JSON.parse(localStorage.getItem(s.configName)) || {
-      headers: {},
-      deletedFields: {},
-      crawlDelay: 1e3,
-      maxWait: 2e4,
-      stopTimeLimit: 15,
-      stopScrollLimit: 3,
-      downloadFolder: 'douyin-url-extractor'
-    }),
-    (s.config.stopTimeLimit = s.config.stopTimeLimit || 15),
-    (s.config.stopScrollLimit = s.config.stopScrollLimit || 3),
-    (s.config.downloadFolder = s.config.downloadFolder !== undefined ? s.config.downloadFolder : 'douyin-url-extractor'),
+    (() => {
+      var savedConfig = JSON.parse(localStorage.getItem(s.configName)) || {};
+      s.config = {
+        headers: savedConfig.headers || {},
+        deletedFields: savedConfig.deletedFields || {},
+        crawlDelay: 1500,
+        maxWait: 20000,
+        stopTimeLimit: 15,
+        stopScrollLimit: 3,
+        downloadFolder: 'douyin-url-extractor'
+      };
+      S();
+    })(),
     $("#crawlDelay").val(s.config.crawlDelay / 1e3),
     $("#maxWait").val(s.config.maxWait / 1e3),
     $("#stopTimeLimit").val(s.config.stopTimeLimit),
@@ -896,6 +897,69 @@ function I() {
         (s.config.downloadFolder = clean, S());
       },
     ),
+    $("#crawlDelay").on("blur change", function () {
+      var val = parseFloat($(this).val());
+      if (isNaN(val) || val < 0) {
+        $(this).val(0);
+        s.config.crawlDelay = 0;
+        S();
+        p("", "inputError");
+      } else {
+        var maxWaitSec = s.config.maxWait / 1000;
+        if (val >= maxWaitSec) {
+          var clamped = Math.max(0, maxWaitSec - 1);
+          $(this).val(clamped);
+          s.config.crawlDelay = Math.round(clamped * 1000);
+          S();
+          p("", "inputError");
+        }
+      }
+    }),
+    $("#maxWait").on("blur change", function () {
+      var val = parseFloat($(this).val());
+      var minWaitSec = s.config.crawlDelay / 1000;
+      if (isNaN(val) || val <= minWaitSec) {
+        var clamped = minWaitSec + 1;
+        $(this).val(clamped);
+        s.config.maxWait = Math.round(clamped * 1000);
+        S();
+        p("", "inputError");
+      }
+    }),
+    $("#stopTimeLimit").on("blur change", function () {
+      var val = parseInt($(this).val());
+      if (isNaN(val)) {
+        $(this).val(s.config.stopTimeLimit);
+        p("", "inputError");
+      } else if (val < 5) {
+        $(this).val(5);
+        s.config.stopTimeLimit = 5;
+        S();
+        p("", "inputError");
+      } else if (val > 60) {
+        $(this).val(60);
+        s.config.stopTimeLimit = 60;
+        S();
+        p("", "inputError");
+      }
+    }),
+    $("#stopScrollLimit").on("blur change", function () {
+      var val = parseInt($(this).val());
+      if (isNaN(val)) {
+        $(this).val(s.config.stopScrollLimit);
+        p("", "inputError");
+      } else if (val < 1) {
+        $(this).val(1);
+        s.config.stopScrollLimit = 1;
+        S();
+        p("", "inputError");
+      } else if (val > 10) {
+        $(this).val(10);
+        s.config.stopScrollLimit = 10;
+        S();
+        p("", "inputError");
+      }
+    }),
     $("#resetColumns").click(function () {
       ((s.config.deletedFields = {}), S(), $("#resetColumns").hide(), v());
     }),

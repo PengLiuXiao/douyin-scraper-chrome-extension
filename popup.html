@@ -67,22 +67,22 @@
 
               <form class="btn-block">
                   <div class="input-group btn-block">
-                      <span class="input-group-addon">最短延迟</span>
-                      <input id='crawlDelay' type='number' value='1' class="form-control" />
+                      <span class="input-group-addon">最短延迟(&ge;0)</span>
+                      <input id='crawlDelay' type='number' value='1.5' class="form-control" />
                       <span class="input-group-addon">秒</span>
                   </div>
                   <div class="input-group btn-block">
-                      <span class="input-group-addon">最长等待</span>
+                      <span class="input-group-addon">最长等待(&gt;延迟)</span>
                       <input id='maxWait' type='number' value='20' class="form-control" />
                       <span class="input-group-addon">秒</span>
                   </div>
                   <div class="input-group btn-block">
-                      <span class="input-group-addon">时间上限</span>
+                      <span class="input-group-addon">时间上限(5-60)</span>
                       <input id='stopTimeLimit' type='number' value='15' min='5' max='60' class="form-control" />
                       <span class="input-group-addon">秒无新增停止</span>
                   </div>
                   <div class="input-group btn-block">
-                      <span class="input-group-addon">连续无新增</span>
+                      <span class="input-group-addon">连续无新增(1-10)</span>
                       <input id='stopScrollLimit' type='number' value='3' min='1' max='10' class="form-control" />
                       <span class="input-group-addon">次滚动后停止</span>
                   </div>
