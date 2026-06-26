@@ -1,0 +1,117 @@
+name: Build and Release Extension
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'manifest.json'
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect Version
+        id: detect_version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            # Triggered by tag push
+            TAG_NAME="${{ github.ref_name }}"
+            VERSION="${TAG_NAME#v}"
+            echo "Triggered by tag: $TAG_NAME (Version: $VERSION)"
+            echo "changed=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Triggered manually
+            VERSION=$(jq -r '.version' manifest.json)
+            TAG_NAME="v$VERSION"
+            echo "Triggered manually. Using version in manifest.json: $VERSION (Tag: $TAG_NAME)"
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            # Triggered by push to main
+            NEW_VERSION=$(jq -r '.version' manifest.json)
+            if git rev-parse HEAD~1 >/dev/null 2>&1; then
+              OLD_VERSION=$(git show HEAD~1:manifest.json | jq -r '.version' 2>/dev/null || echo "")
+            else
+              OLD_VERSION=""
+            fi
+            if [ "$NEW_VERSION" != "$OLD_VERSION" ]; then
+              VERSION="$NEW_VERSION"
+              TAG_NAME="v$VERSION"
+              echo "Version changed from '$OLD_VERSION' to '$NEW_VERSION' in manifest.json."
+              echo "changed=true" >> $GITHUB_OUTPUT
+            else
+              echo "Version did not change in manifest.json. Skipping auto release."
+              echo "changed=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+          
+          if [ -n "$VERSION" ]; then
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if Tag Exists
+        id: tag_check
+        if: steps.detect_version.outputs.changed == 'true'
+        run: |
+          TAG_NAME="${{ steps.detect_version.outputs.tag }}"
+          # Fetch all tags from origin
+          git fetch --tags
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Tag $TAG_NAME already exists in remote. Skipping release to prevent collision."
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Tag $TAG_NAME does not exist. Proceeding with release."
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Package Extension
+        if: steps.detect_version.outputs.changed == 'true' && steps.tag_check.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.detect_version.outputs.version }}"
+          ZIP_NAME="douyin-url-extractor-pro-v${VERSION}.zip"
+          echo "Packaging extension to ${ZIP_NAME}..."
+          
+          # Zip everything except dotfiles, .git, .github, and other dev tools
+          zip -r "$ZIP_NAME" . -x "*.git*" "*.github*" "*.vscode*" ".gitignore" "docs/*" "CLAUDE.md" "AGENTS.md"
+          
+          echo "zip_name=$ZIP_NAME" >> $GITHUB_ENV
+
+      - name: Create Git Tag and Push
+        if: steps.detect_version.outputs.changed == 'true' && steps.tag_check.outputs.exists == 'false' && github.ref_type != 'tag'
+        run: |
+          TAG_NAME="${{ steps.detect_version.outputs.tag }}"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git tag -a "$TAG_NAME" -m "Automated release tag for version ${{ steps.detect_version.outputs.version }}"
+          git push origin "$TAG_NAME"
+
+      - name: Create GitHub Release
+        if: steps.detect_version.outputs.changed == 'true' && steps.tag_check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ steps.detect_version.outputs.tag }}"
+          VERSION="${{ steps.detect_version.outputs.version }}"
+          ZIP_NAME="${{ env.zip_name }}"
+          
+          echo "Creating release $TAG_NAME..."
+          gh release create "$TAG_NAME" \
+            --title "DouyinURL提取Pro $TAG_NAME" \
+            --notes "#### 更新说明 (Version $VERSION)
+
+* 自动打包版本：$VERSION
+* 部署文件：\`$ZIP_NAME\`
+* 安装指南：下载此 ZIP 文件并解压，在 Chrome 浏览器中开启「开发者模式」，点击「加载已解压的扩展程序」，选择解压后的文件夹即可使用。" \
+            "$ZIP_NAME"
