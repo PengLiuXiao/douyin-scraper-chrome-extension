@@ -32,7 +32,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 4. 测试 CSV/XLSX 导出，确认文件保存到 `~/Downloads/douyin-url-extractor/` 且格式正确
 5. 测试批量关键词搜索（准备测试用 CSV），检查进度面板和合并导出
 
+## 目录结构
+
+```
+douyin-url-extractor-pro/
+├── manifest.json              # 扩展配置（权限、脚本注入、图标路径）
+├── src/                       # 首方源码
+│   ├── background/
+│   │   └── background.js      # Service Worker：开启侧边栏行为
+│   ├── content/
+│   │   ├── inject.js          # MAIN world：拦截 fetch/XHR，postMessage 发送数据
+│   │   ├── content.js         # ISOLATED world：缓存数据、DOM 降级、响应 popup
+│   │   └── content.css        # 页面高亮样式
+│   └── popup/
+│       ├── popup.html         # 侧边栏 UI 入口
+│       ├── popup.css          # 侧边栏样式
+│       └── popup.js           # UI 控制器：滚动、批量搜索、导出
+├── assets/                    # 静态资源
+│   ├── icons/                 # 扩展图标（16/48/128px PNG）
+│   └── images/                # 其他图片（如 webrobots_logo.png）
+└── lib/                       # 第三方依赖库（CDN 离线版，不修改）
+    ├── jquery-3.1.1.min.js
+    ├── sha256.min.js
+    ├── bootstrap.min.{css,js}
+    ├── handsontable.min.{css,js}
+    ├── papaparse.min.js
+    ├── FileSaver.js
+    └── xlsx.full.min.js
+```
+
 ## 架构核心
+
 
 ### 双通道数据提取
 

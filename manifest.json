@@ -32,7 +32,7 @@
     },
     {
       "matches": ["*://*.douyin.com/*"],
-      "js": ["lib/jquery-3.1.1.min.js", "lib/sha256.min.js", "src/content/content.js"],
+      "js": ["lib/jquery-3.1.1.min.js", "src/content/content.js"],
       "css": ["src/content/content.css"],
       "run_at": "document_end"
     }
