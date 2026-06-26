@@ -37,15 +37,21 @@
 ```
 douyin-url-extractor-pro/
 ├── manifest.json           # Chrome 扩展配置 (Manifest V3)
-├── background.js           # 后台 Service Worker，监听图标点击，创建弹窗
-├── inject.js               # API 拦截脚本（运行在 MAIN world）
-├── content.js              # 数据处理、DOM降级、消息监听
-├── content.css             # 页面高亮样式（通用模式使用）
-├── popup.html              # 扩展弹窗界面
-├── popup.css               # 弹窗样式
-├── popup.js                # 弹窗逻辑控制器
-├── icons/                  # 扩展图标（16 / 48 / 128px）
-└── js/                     # 第三方库
+├── src/                    # 业务源码目录
+│   ├── background/         # 后台脚本
+│   │   └── background.js   # 后台 Service Worker，监听图标点击，创建弹窗
+│   ├── content/            # 内容脚本与页面注入逻辑
+│   │   ├── content.js      # 数据处理、DOM 降级、消息监听
+│   │   ├── content.css     # 页面高亮样式（通用模式使用）
+│   │   └── inject.js       # API 拦截脚本（运行在 MAIN world）
+│   └── popup/              # 弹窗 / 侧边栏交互逻辑
+│       ├── popup.html      # 扩展弹窗/侧边栏界面
+│       ├── popup.css       # 弹窗/侧边栏样式
+│       └── popup.js        # 弹窗/侧边栏逻辑控制器
+├── assets/                 # 静态资源目录
+│   ├── icons/              # 扩展图标
+│   └── images/             # 图片资源
+└── lib/                    # 第三方依赖库
     ├── jquery-3.1.1.min.js
     ├── sha256.min.js
     ├── bootstrap.min.css

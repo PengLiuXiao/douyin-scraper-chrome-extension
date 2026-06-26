@@ -21,28 +21,28 @@
     "default_title": "DouyinURL提取Pro - AI智能检测"
   },
   "side_panel": {
-    "default_path": "popup.html"
+    "default_path": "src/popup/popup.html"
   },
   "content_scripts": [
     {
       "matches": ["*://*.douyin.com/*"],
-      "js": ["inject.js"],
+      "js": ["src/content/inject.js"],
       "run_at": "document_start",
       "world": "MAIN"
     },
     {
       "matches": ["*://*.douyin.com/*"],
-      "js": ["js/jquery-3.1.1.min.js", "js/sha256.min.js", "content.js"],
-      "css": ["content.css"],
+      "js": ["lib/jquery-3.1.1.min.js", "lib/sha256.min.js", "src/content/content.js"],
+      "css": ["src/content/content.css"],
       "run_at": "document_end"
     }
   ],
   "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png", 
-    "128": "icons/icon128.png"
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png", 
+    "128": "assets/icons/icon128.png"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "src/background/background.js"
   }
 }
