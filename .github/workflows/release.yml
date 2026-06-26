@@ -89,7 +89,7 @@ jobs:
           echo "zip_name=$ZIP_NAME" >> $GITHUB_ENV
 
       - name: Create Git Tag and Push
-        if: steps.detect_version.outputs.changed == 'true' && steps.tag_check.outputs.exists == 'false' && github.ref_type != 'tag'
+        if: steps.detect_version.outputs.changed == 'true' && steps.tag_check.outputs.exists == 'false' && !startsWith(github.ref, 'refs/tags/')
         run: |
           TAG_NAME="${{ steps.detect_version.outputs.tag }}"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
@@ -107,11 +107,14 @@ jobs:
           ZIP_NAME="${{ env.zip_name }}"
           
           echo "Creating release $TAG_NAME..."
+          
+          echo "#### 更新说明 (Version ${VERSION})" > release_notes.md
+          echo "" >> release_notes.md
+          echo "* 自动打包版本：${VERSION}" >> release_notes.md
+          echo "* 部署文件：${ZIP_NAME}" >> release_notes.md
+          echo "* 安装指南：下载此 ZIP 文件并解压，在 Chrome 浏览器中开启「开发者模式」，点击「加载已解压的扩展程序」，选择解压后的文件夹即可使用。" >> release_notes.md
+          
           gh release create "$TAG_NAME" \
             --title "DouyinURL提取Pro $TAG_NAME" \
-            --notes "#### 更新说明 (Version $VERSION)
-
-* 自动打包版本：$VERSION
-* 部署文件：\`$ZIP_NAME\`
-* 安装指南：下载此 ZIP 文件并解压，在 Chrome 浏览器中开启「开发者模式」，点击「加载已解压的扩展程序」，选择解压后的文件夹即可使用。" \
+            --notes-file release_notes.md \
             "$ZIP_NAME"
