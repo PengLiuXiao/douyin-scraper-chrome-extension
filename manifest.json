@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DouyinURL抓取Pro",
-  "version": "1.0.0",
+  "version": "1.2.1",
   "description": "AI智能检测抖音视频数据，一键提取视频链接、视频ID等12个数据字段，支持CSV/XLSX导出",
   "permissions": [
     "webRequest",
